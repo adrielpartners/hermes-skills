@@ -1,0 +1,167 @@
+{
+  "skill": "ClickUp Integration for Hermes Agent",
+  "version": "1.0.0",
+  "created": "2026-05-22T13:42:15.730511",
+  "workspace": {
+    "name": "ADRIEL PARTNERS",
+    "id": "1233538",
+    "api_version": "v2",
+    "api_base": "https://api.clickup.com/api/v2"
+  },
+  "team_members": [
+    {
+      "id": 101207393,
+      "username": "Armando Pulgar",
+      "email": "armandopulgarb@gmail.com"
+    },
+    {
+      "id": 55307323,
+      "username": "Noble Daniel",
+      "email": "thenobledaniel@gmail.com"
+    },
+    {
+      "id": 3017021,
+      "username": "Isabella Amengual",
+      "email": "amengualisabella@gmail.com"
+    },
+    {
+      "id": 54035174,
+      "username": "AB",
+      "email": "digital.b3asts@gmail.com"
+    },
+    {
+      "id": 1377633,
+      "username": "Phillip Gonzales",
+      "email": "phillip@phillipgonzales.com",
+      "role": "owner"
+    }
+  ],
+  "files": {
+    "README.md": {
+      "description": "Setup guide and getting started",
+      "size_bytes": 5600,
+      "size_kb": 5.46875,
+      "lines": 197,
+      "path": "/Users/max/.hermes/skills/productivity/clickup/README.md"
+    },
+    "SKILL.md": {
+      "description": "Complete ClickUp skill documentation (API reference, operations, pitfalls)",
+      "size_bytes": 12447,
+      "size_kb": 12.1552734375,
+      "lines": 449,
+      "path": "/Users/max/.hermes/skills/productivity/clickup/SKILL.md"
+    },
+    "QUICK_START.md": {
+      "description": "Quick reference with copy-paste examples",
+      "size_bytes": 5779,
+      "size_kb": 5.6435546875,
+      "lines": 268,
+      "path": "/Users/max/.hermes/skills/productivity/clickup/QUICK_START.md"
+    },
+    "HERMES_INTEGRATION.md": {
+      "description": "How to use the skill in Hermes Agent chat",
+      "size_bytes": 6901,
+      "size_kb": 6.7392578125,
+      "lines": 307,
+      "path": "/Users/max/.hermes/skills/productivity/clickup/HERMES_INTEGRATION.md"
+    },
+    "TROUBLESHOOTING.md": {
+      "description": "Problem-solving guide for common issues",
+      "size_bytes": 9779,
+      "size_kb": 9.5498046875,
+      "lines": 416,
+      "path": "/Users/max/.hermes/skills/productivity/clickup/TROUBLESHOOTING.md"
+    },
+    "INDEX.md": {
+      "description": "Navigation guide and learning paths",
+      "size_bytes": 6988,
+      "size_kb": 6.82421875,
+      "lines": 288,
+      "path": "/Users/max/.hermes/skills/productivity/clickup/INDEX.md"
+    },
+    "clickup_client.py": {
+      "description": "Python wrapper for ClickUp API v2 (20+ methods)",
+      "size_bytes": 8239,
+      "size_kb": 8.0458984375,
+      "lines": 243,
+      "path": "/Users/max/.hermes/skills/productivity/clickup/clickup_client.py"
+    },
+    "examples.py": {
+      "description": "8 realistic workflow examples in Python",
+      "size_bytes": 8352,
+      "size_kb": 8.15625,
+      "lines": 268,
+      "path": "/Users/max/.hermes/skills/productivity/clickup/examples.py"
+    }
+  },
+  "operations": [
+    "create_task",
+    "get_task",
+    "update_task",
+    "list_tasks",
+    "delete_task",
+    "create_list",
+    "get_lists",
+    "delete_list",
+    "create_folder",
+    "get_folders",
+    "delete_folder",
+    "add_comment",
+    "get_comments",
+    "upload_attachment",
+    "get_task_attachments",
+    "get_team_members",
+    "get_member_by_email",
+    "get_member_by_username",
+    "get_list_statuses",
+    "set_task_status"
+  ],
+  "statistics": {
+    "total_files": 8,
+    "total_size_bytes": 64085,
+    "total_size_kb": 62.5830078125,
+    "total_lines": 2436,
+    "total_operations": 20,
+    "team_members": 5
+  },
+  "features": {
+    "tasks": [
+      "create",
+      "read",
+      "update",
+      "delete",
+      "list",
+      "search"
+    ],
+    "organization": [
+      "folders",
+      "lists",
+      "hierarchy"
+    ],
+    "collaboration": [
+      "comments",
+      "assignments",
+      "team_management"
+    ],
+    "files": [
+      "upload_attachments",
+      "download_attachments"
+    ],
+    "workflow": [
+      "status_management",
+      "priority",
+      "due_dates"
+    ],
+    "team": [
+      "member_lookup",
+      "assignment",
+      "permission_aware"
+    ]
+  },
+  "quick_start": {
+    "1_test_connection": "python ~/.hermes/skills/productivity/clickup/clickup_client.py team",
+    "2_load_in_hermes": "/skill clickup",
+    "3_use_in_chat": "> Create a task in ClickUp for 'My task' and assign to Phillip",
+    "4_read_docs": "cat ~/.hermes/skills/productivity/clickup/README.md"
+  }
+}

@@ -1,0 +1,23 @@
+# Zoho Mail Account Configuration
+
+# Define your Zoho Mail accounts here
+# Each account needs: name, email, client_id, client_secret, account_id
+
+accounts:
+  adriel:
+    email: phillip@adrielpartners.com
+    account_id: ${ZOHO_ACCOUNT_ID_ADRIEL}
+    description: "ADRIEL PARTNERS"
+    default: true
+  
+  sitehub:
+    email: team@sitehubservices.com
+    account_id: ${ZOHO_ACCOUNT_ID_SITEHUB}
+    description: "Site Hub Services"
+    default: false
+
+# OAuth credentials (shared across accounts)
+oauth:
+  client_id: ${ZOHO_CLIENT_ID}
+  client_secret: ${ZOHO_CLIENT_SECRET}
+  redirect_url: http://localhost:8080/callback

@@ -41,6 +41,34 @@ This skill is ideal for **automating email workflows**, **batch sending**, and *
 
 ## Setup
 
+### Configure Multiple Accounts
+
+1. **Edit `config.yaml`** in the skill directory:
+   ```bash
+   nano ~/.hermes/skills/productivity/zoho-mail/config.yaml
+   ```
+
+2. **Add your accounts:**
+   ```yaml
+   accounts:
+     adriel:
+       email: phillip@adrielpartners.com
+       account_id: ${ZOHO_ACCOUNT_ID_ADRIEL}
+       description: "ADRIEL PARTNERS"
+       default: true
+     
+     sitehub:
+       email: team@sitehubservices.com
+       account_id: ${ZOHO_ACCOUNT_ID_SITEHUB}
+       description: "Site Hub Services"
+       default: false
+   
+   oauth:
+     client_id: ${ZOHO_CLIENT_ID}
+     client_secret: ${ZOHO_CLIENT_SECRET}
+     redirect_url: http://localhost:8080/callback
+   ```
+
 ### Get Zoho OAuth Credentials
 
 1. Go to [Zoho API Console](https://api-console.zoho.com)
@@ -54,28 +82,31 @@ This skill is ideal for **automating email workflows**, **batch sending**, and *
    ```bash
    ZOHO_CLIENT_ID=your_client_id
    ZOHO_CLIENT_SECRET=your_client_secret
+   ZOHO_ACCOUNT_ID_ADRIEL=your_adriel_account_id
+   ZOHO_ACCOUNT_ID_SITEHUB=your_sitehub_account_id
    ZOHO_REDIRECT_URL=http://localhost:8080/callback
-   ZOHO_ACCOUNT_ID=your_account_id  # Find in Zoho settings
    ```
 
-### Get Your Account ID
+### Get Account IDs
+
+For each Zoho Mail account, find the Account ID:
 
 1. Log into [Zoho Mail](https://mail.zoho.com)
-2. Settings → Account Settings → look for "Account ID" or make an API call to get it:
-
-```bash
-curl -X GET https://mail.zoho.com/api/accounts \
-  -H "Authorization: Zoho-oauthtoken YOUR_TOKEN"
-```
+2. Settings → Account Settings → look for "Account ID"
+3. Or via API:
+   ```bash
+   curl -X GET https://mail.zoho.com/api/accounts \
+     -H "Authorization: Zoho-oauthtoken YOUR_TOKEN"
+   ```
 
 ### Required Credentials
 
 | Variable | Description |
 |----------|-------------|
-| `ZOHO_CLIENT_ID` | OAuth Client ID |
-| `ZOHO_CLIENT_SECRET` | OAuth Client Secret |
-| `ZOHO_REDIRECT_URL` | OAuth callback URL (default: `http://localhost:8080/callback`) |
-| `ZOHO_ACCOUNT_ID` | Your Zoho Mail Account ID |
+| `ZOHO_CLIENT_ID` | OAuth Client ID (shared) |
+| `ZOHO_CLIENT_SECRET` | OAuth Client Secret (shared) |
+| `ZOHO_ACCOUNT_ID_ADRIEL` | Account ID for phillip@adrielpartners.com |
+| `ZOHO_ACCOUNT_ID_SITEHUB` | Account ID for team@sitehubservices.com |
 
 ## Operations
 
@@ -235,44 +266,85 @@ Base URL: `https://mail.zoho.com/api/accounts/{accountId}`
 
 ## Examples
 
-### Example 1: Auto-Save Draft Before Review
+### Example 1: List Accounts
 
-```python
-# Compose a response
-message = "Thank you for your email. I'll review your proposal and get back to you within 24 hours."
+```bash
+hermes chat -q "List my Zoho Mail accounts"
 
-# Ask to save as draft
-hermes chat -q f"""
+# Output:
+# === Zoho Mail Accounts ===
+#
+# adriel (default)
+#   Email: phillip@adrielpartners.com
+#   ADRIEL PARTNERS
+#
+# sitehub
+#   Email: team@sitehubservices.com
+#   Site Hub Services
+```
+
+### Example 2: Create Draft (Default Account)
+
+```bash
+hermes chat -q "
 Create a draft email:
 - To: client@example.com
-- Subject: Re: Project Proposal
-- Body: {message}
+- Subject: Project Update
+- Body: Please review the attached proposal.
+"
 
-Then wait for my approval before sending.
-"""
+# Creates draft in default account (adriel)
 ```
 
-### Example 2: List Drafts and Send Selected One
+### Example 3: Create Draft in Specific Account
 
-```python
-hermes chat -q "List all my drafts"
-
-# Output shows draft IDs
-# Then:
-hermes chat -q "Send draft draft_abc123"
+```bash
+hermes chat -q "
+Create a draft in sitehub account:
+- To: contact@example.com
+- Subject: Website Service
+- Body: We can help with your website.
+"
 ```
 
-### Example 3: Batch Email with Drafts
+### Example 4: List Drafts from Specific Account
 
-```python
-recipients = ["alice@example.com", "bob@example.com", "charlie@example.com"]
+```bash
+hermes chat -q "List drafts from sitehub account"
 
-for recipient in recipients:
-    hermes chat -q f"""
-    Create draft to {recipient} with:
-    Subject: Q1 Report
-    Body: Please find the Q1 metrics attached
-    """
+# Returns:
+# === Drafts (team@sitehubservices.com) ===
+# ID: draft_123
+# To: ...
+```
+
+### Example 5: Send Draft from Specific Account
+
+```bash
+hermes chat -q "Send draft from sitehub account: draft_123"
+```
+
+### Example 6: Compose Draft for Team Review
+
+```bash
+hermes chat -q "
+Create draft in adriel account to: team@adrielpartners.com
+Subject: Q1 Marketing Plan
+Body: Team,
+
+Here's the proposed Q1 marketing plan:
+- Focus on social media (Twitter, LinkedIn)
+- Launch blog content series
+- Partner outreach program
+
+Please review and provide feedback by EOD Thursday.
+
+Best,
+Phillip
+"
+
+# Creates draft, you review it, then:
+# Send draft from adriel account: DRAFT_ID
 ```
 
 ## Verification Checklist

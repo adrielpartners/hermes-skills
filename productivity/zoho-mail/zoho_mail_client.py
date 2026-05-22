@@ -2,37 +2,149 @@
 Zoho Mail API Client for Hermes Agent
 
 Handles OAuth authentication, draft management, and email operations.
+Supports multiple Zoho Mail accounts.
 """
 
 import os
 import json
+import yaml
 import requests
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Any
 from urllib.parse import urlencode
+from pathlib import Path
 
 
 class ZohoMailClient:
-    """Client for Zoho Mail API v2"""
+    """Client for Zoho Mail API v2 with multi-account support"""
 
     BASE_URL = "https://mail.zoho.com/api"
     OAUTH_URL = "https://accounts.zoho.com/oauth/v2"
     
-    def __init__(self):
-        self.client_id = os.getenv("ZOHO_CLIENT_ID")
-        self.client_secret = os.getenv("ZOHO_CLIENT_SECRET")
-        self.account_id = os.getenv("ZOHO_ACCOUNT_ID")
-        self.redirect_url = os.getenv("ZOHO_REDIRECT_URL", "http://localhost:8080/callback")
+    def __init__(self, account: Optional[str] = None):
+        """
+        Initialize client for a specific account.
         
-        if not all([self.client_id, self.client_secret, self.account_id]):
+        Args:
+            account: Account name (e.g., 'adriel', 'sitehub'). 
+                    If None, uses default account from config.
+        """
+        self.config_file = Path(__file__).parent / "config.yaml"
+        self.config = self._load_config()
+        
+        # Determine which account to use
+        if account is None:
+            account = self._get_default_account()
+        
+        self.account_name = account
+        self.account_config = self.config.get("accounts", {}).get(account)
+        
+        if not self.account_config:
             raise ValueError(
-                "Missing Zoho credentials. Set ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, "
-                "and ZOHO_ACCOUNT_ID in ~/.hermes/.env"
+                f"Account '{account}' not found. Available: {list(self.config.get('accounts', {}).keys())}"
+            )
+        
+        # Get OAuth credentials
+        oauth_config = self.config.get("oauth", {})
+        self.client_id = os.getenv(
+            "ZOHO_CLIENT_ID", 
+            oauth_config.get("client_id", "").replace("${ZOHO_CLIENT_ID}", "")
+        )
+        self.client_secret = os.getenv(
+            "ZOHO_CLIENT_SECRET",
+            oauth_config.get("client_secret", "").replace("${ZOHO_CLIENT_SECRET}", "")
+        )
+        self.redirect_url = os.getenv(
+            "ZOHO_REDIRECT_URL",
+            oauth_config.get("redirect_url", "http://localhost:8080/callback")
+        )
+        
+        # Get account-specific details
+        self.email = self.account_config.get("email")
+        self.account_id = self._resolve_env_var(self.account_config.get("account_id"))
+        
+        if not all([self.client_id, self.client_secret, self.account_id, self.email]):
+            raise ValueError(
+                f"Missing credentials for account '{account}'. "
+                f"Check config.yaml and .env for ZOHO_CLIENT_ID, ZOHO_CLIENT_SECRET, "
+                f"and ZOHO_ACCOUNT_ID_{account.upper()}"
             )
         
         self.token = None
         self.token_expiry = None
         self._load_token()
+    
+    def _load_config(self) -> Dict[str, Any]:
+        """Load config.yaml"""
+        if not self.config_file.exists():
+            return {"accounts": {}, "oauth": {}}
+        
+        with open(self.config_file, "r") as f:
+            config = yaml.safe_load(f) or {}
+        
+        # Resolve environment variables in config
+        config = self._resolve_config_vars(config)
+        return config
+    
+    def _resolve_config_vars(self, config: Dict) -> Dict:
+        """Resolve ${VAR} placeholders in config"""
+        import re
+        
+        def resolve_value(val):
+            if isinstance(val, str):
+                return re.sub(r'\$\{([^}]+)\}', lambda m: os.getenv(m.group(1), m.group(0)), val)
+            elif isinstance(val, dict):
+                return {k: resolve_value(v) for k, v in val.items()}
+            elif isinstance(val, list):
+                return [resolve_value(v) for v in val]
+            return val
+        
+        return resolve_value(config)
+    
+    def _resolve_env_var(self, value: str) -> Optional[str]:
+        """Resolve a single environment variable reference"""
+        if not value:
+            return None
+        
+        import re
+        match = re.match(r'\$\{([^}]+)\}', value)
+        if match:
+            return os.getenv(match.group(1))
+        return value
+    
+    def _get_default_account(self) -> str:
+        """Get default account name from config"""
+        for name, config in self.config.get("accounts", {}).items():
+            if config.get("default"):
+                return name
+        
+        # If no default, return first account
+        accounts = list(self.config.get("accounts", {}).keys())
+        if accounts:
+            return accounts[0]
+        
+        raise ValueError("No accounts configured in config.yaml")
+    
+    @staticmethod
+    def list_accounts() -> List[Dict[str, str]]:
+        """List all configured accounts"""
+        config_file = Path(__file__).parent / "config.yaml"
+        if not config_file.exists():
+            return []
+        
+        with open(config_file, "r") as f:
+            config = yaml.safe_load(f) or {}
+        
+        accounts_list = []
+        for name, account_config in config.get("accounts", {}).items():
+            accounts_list.append({
+                "name": name,
+                "email": account_config.get("email"),
+                "description": account_config.get("description", ""),
+                "default": account_config.get("default", False)
+            })
+        
+        return accounts_list
     
     def _load_token(self) -> None:
         """Load OAuth token from ~/.hermes/auth.json"""
@@ -43,9 +155,11 @@ class ZohoMailClient:
         try:
             with open(auth_file, "r") as f:
                 data = json.load(f)
-                if "zoho_mail" in data:
-                    self.token = data["zoho_mail"].get("access_token")
-                    expiry = data["zoho_mail"].get("expires_at")
+                # Store tokens per account: zoho_mail.<account_name>
+                account_key = f"zoho_mail_{self.account_name}"
+                if account_key in data:
+                    self.token = data[account_key].get("access_token")
+                    expiry = data[account_key].get("expires_at")
                     if expiry:
                         self.token_expiry = datetime.fromisoformat(expiry)
         except (json.JSONDecodeError, IOError):
@@ -64,9 +178,12 @@ class ZohoMailClient:
         self.token = token
         self.token_expiry = datetime.now() + timedelta(seconds=expires_in)
         
-        data["zoho_mail"] = {
+        # Store per account: zoho_mail_adriel, zoho_mail_sitehub, etc.
+        account_key = f"zoho_mail_{self.account_name}"
+        data[account_key] = {
             "access_token": token,
-            "expires_at": self.token_expiry.isoformat()
+            "expires_at": self.token_expiry.isoformat(),
+            "account": self.email
         }
         
         with open(auth_file, "w") as f:
@@ -290,23 +407,23 @@ class ZohoMailClient:
 
 # Convenience functions for Hermes integration
 
-def create_draft(to: str, subject: str, body: str, cc: str = "", bcc: str = "") -> str:
+def create_draft(to: str, subject: str, body: str, cc: str = "", bcc: str = "", account: str = None) -> str:
     """Create a draft and return draft ID"""
-    client = ZohoMailClient()
+    client = ZohoMailClient(account)
     result = client.create_draft(to, subject, body, cc or None, bcc or None)
     draft_id = result.get("draftId") or result.get("id")
-    return f"Draft created: {draft_id}\nTo: {to}\nSubject: {subject}"
+    return f"Draft created in {client.account_config.get('description', client.account_name)}\n\nID: {draft_id}\nTo: {to}\nSubject: {subject}"
 
 
-def list_drafts() -> str:
+def list_drafts(account: str = None) -> str:
     """List all drafts"""
-    client = ZohoMailClient()
+    client = ZohoMailClient(account)
     drafts = client.get_drafts()
     
     if not drafts:
-        return "No drafts found."
+        return f"No drafts found in {client.account_config.get('description', client.account_name)}."
     
-    output = "=== Your Drafts ===\n"
+    output = f"=== Drafts ({client.email}) ===\n"
     for draft in drafts:
         output += f"\nID: {draft.get('draftId')}\n"
         output += f"To: {draft.get('toAddress')}\n"
@@ -316,22 +433,39 @@ def list_drafts() -> str:
     return output
 
 
-def send_draft(draft_id: str) -> str:
+def send_draft(draft_id: str, account: str = None) -> str:
     """Send a draft"""
-    client = ZohoMailClient()
+    client = ZohoMailClient(account)
     result = client.send_draft(draft_id)
-    return f"Draft {draft_id} sent successfully."
+    return f"Draft {draft_id} sent from {client.email}"
 
 
-def delete_draft(draft_id: str) -> str:
+def delete_draft(draft_id: str, account: str = None) -> str:
     """Delete a draft"""
-    client = ZohoMailClient()
+    client = ZohoMailClient(account)
     client.delete_draft(draft_id)
-    return f"Draft {draft_id} deleted."
+    return f"Draft {draft_id} deleted from {client.email}"
 
 
-def send_email(to: str, subject: str, body: str, cc: str = "", bcc: str = "") -> str:
+def send_email(to: str, subject: str, body: str, cc: str = "", bcc: str = "", account: str = None) -> str:
     """Send email directly"""
-    client = ZohoMailClient()
+    client = ZohoMailClient(account)
     result = client.send_email(to, subject, body, cc or None, bcc or None)
-    return f"Email sent to {to}\nSubject: {subject}"
+    return f"Email sent from {client.email} to {to}\nSubject: {subject}"
+
+
+def list_accounts() -> str:
+    """List all configured accounts"""
+    accounts = ZohoMailClient.list_accounts()
+    
+    if not accounts:
+        return "No accounts configured."
+    
+    output = "=== Zoho Mail Accounts ===\n"
+    for account in accounts:
+        marker = " (default)" if account["default"] else ""
+        output += f"\n{account['name']}{marker}\n"
+        output += f"  Email: {account['email']}\n"
+        output += f"  {account['description']}\n"
+    
+    return output
